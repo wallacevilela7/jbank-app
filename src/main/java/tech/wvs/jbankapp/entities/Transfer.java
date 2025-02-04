@@ -1,7 +1,6 @@
 package tech.wvs.jbankapp.entities;
 
 import jakarta.persistence.*;
-import org.hibernate.engine.transaction.jta.platform.internal.WildFlyStandAloneJtaPlatform;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -9,7 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "tb_tranfers")
-public class Tranfer {
+public class Transfer {
 
     @Id
     @Column(name = "transfer_id")
@@ -30,7 +29,7 @@ public class Tranfer {
     @Column(name = "transfer_date_time")
     private LocalDateTime transferDateTime;
 
-    public Tranfer() {
+    public Transfer() {
     }
 
     public UUID getTransferId() {
