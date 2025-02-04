@@ -3,10 +3,12 @@ package tech.wvs.jbankapp.service;
 import org.springframework.stereotype.Service;
 import tech.wvs.jbankapp.controller.dto.CreateWalletDto;
 import tech.wvs.jbankapp.entities.Wallet;
+import tech.wvs.jbankapp.exception.DeleteWalletException;
 import tech.wvs.jbankapp.exception.WalletDataAlreadyExistsException;
 import tech.wvs.jbankapp.repository.WalletRepository;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 public class WalletService {
@@ -31,5 +33,20 @@ public class WalletService {
         wallet.setEmail(data.email());
 
         return walletRepository.save(wallet);
+    }
+
+    public boolean deleteWallet(UUID walletId) {
+        var wallet = walletRepository.findById(walletId);
+
+        if (wallet.isPresent()) {
+
+            if (wallet.get().getBalance().compareTo(BigDecimal.ZERO) != 0) {
+                throw new DeleteWalletException("The balance is not zero, the current amount is $ " + wallet.get().getBalance());
+            }
+
+            walletRepository.deleteById(walletId);
+        }
+
+        return wallet.isPresent();
     }
 }

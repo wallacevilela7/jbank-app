@@ -1,14 +1,13 @@
 package tech.wvs.jbankapp.controller;
 
-import org.springframework.beans.factory.parsing.Problem;
-import org.springframework.http.ProblemDetail;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tech.wvs.jbankapp.controller.dto.CreateWalletDto;
-import tech.wvs.jbankapp.exception.WalletDataAlreadyExistsException;
 import tech.wvs.jbankapp.service.WalletService;
 
 import java.net.URI;
+import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/wallets")
@@ -20,8 +19,16 @@ public class WalletController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> createWallet(@RequestBody CreateWalletDto data) {
+    public ResponseEntity<Void> createWallet(@RequestBody @Valid CreateWalletDto data) {
         var wallet = walletService.createWallet(data);
         return ResponseEntity.created(URI.create("/wallets/" + wallet.getWalletId().toString())).build();
+    }
+
+    @DeleteMapping(path = "/{walletId}")
+    public ResponseEntity<Void> deleteWallet(@PathVariable UUID walletId) {
+        var deleted = walletService.deleteWallet(walletId);
+        return deleted ?
+                ResponseEntity.noContent().build() :
+                ResponseEntity.notFound().build();
     }
 }
