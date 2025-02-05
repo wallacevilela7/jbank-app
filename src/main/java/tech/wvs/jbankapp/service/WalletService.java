@@ -1,17 +1,21 @@
 package tech.wvs.jbankapp.service;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tech.wvs.jbankapp.controller.dto.CreateDepositDto;
-import tech.wvs.jbankapp.controller.dto.CreateWalletDto;
+import tech.wvs.jbankapp.controller.dto.*;
+import tech.wvs.jbankapp.controller.enums.StatementOperation;
 import tech.wvs.jbankapp.entities.Deposit;
 import tech.wvs.jbankapp.entities.Wallet;
 import tech.wvs.jbankapp.exception.DeleteWalletException;
+import tech.wvs.jbankapp.exception.StatementException;
 import tech.wvs.jbankapp.exception.WalletDataAlreadyExistsException;
 import tech.wvs.jbankapp.exception.WalletNotFoundException;
 import tech.wvs.jbankapp.repository.DepositRepository;
 import tech.wvs.jbankapp.repository.WalletRepository;
+import tech.wvs.jbankapp.repository.dto.StatementView;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -80,5 +84,84 @@ public class WalletService {
         wallet.setBalance(wallet.getBalance().add(data.value()));
 
         walletRepository.save(wallet);
+    }
+
+    public StatementDto getStatements(UUID walletId, Integer page, Integer pageSize) {
+        var wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletNotFoundException("There is not wallet with this id"));
+
+        //var pageRequest = PageRequest.of(page, pageSize, Sort.Direction.DESC, "statement_date_time");
+        var pageRequest = PageRequest.of(page, pageSize);
+
+        var statements = walletRepository.findStatements(walletId.toString(), pageRequest)
+                .map(view -> mapToDto(walletId, view));
+
+        return new StatementDto(
+                new WalletDto(
+                        wallet.getWalletId(),
+                        wallet.getCpf(),
+                        wallet.getName(),
+                        wallet.getEmail(),
+                        wallet.getBalance()
+                ),
+                statements.getContent(),
+                new PaginationDto(
+                        statements.getNumber(),
+                        statements.getSize(),
+                        statements.getTotalElements(),
+                        statements.getTotalPages()
+                )
+        );
+    }
+
+    private StatementItemDto mapToDto(UUID walletId, StatementView view) {
+        if (view.getType().equalsIgnoreCase("deposit")) {
+            return mapToDeposit(view);
+        }
+
+        if (view.getType().equalsIgnoreCase("transfer")
+                && view.getWalletSender().equalsIgnoreCase(walletId.toString())) {
+            return mapToStatementItemWhenSender(walletId, view);
+        }
+
+        if (view.getType().equalsIgnoreCase("transfer")
+                && view.getWalletReceiver().equalsIgnoreCase(walletId.toString())) {
+            return mapToStatementItemWhenReceiver(walletId, view);
+        }
+
+        throw new StatementException("Invalid type " + view.getType());
+    }
+
+    private StatementItemDto mapToStatementItemWhenReceiver(UUID walletId, StatementView view) {
+        return new StatementItemDto(
+                view.getStatementId(),
+                view.getType(),
+                "money received from " + view.getWalletSender(),
+                view.getStatementValue(),
+                view.getStatementDateTime(),
+                StatementOperation.DEBIT
+        );
+    }
+
+    private StatementItemDto mapToStatementItemWhenSender(UUID walletId, StatementView view) {
+        return new StatementItemDto(
+                view.getStatementId(),
+                view.getType(),
+                "money sent to " + view.getWalletReceiver(),
+                view.getStatementValue(),
+                view.getStatementDateTime(),
+                StatementOperation.DEBIT
+        );
+    }
+
+    private static StatementItemDto mapToDeposit(StatementView view) {
+        return new StatementItemDto(
+                view.getStatementId(),
+                view.getType(),
+                "money deposit",
+                view.getStatementValue(),
+                view.getStatementDateTime(),
+                StatementOperation.CREDIT
+        );
     }
 }
